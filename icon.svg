@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FocusFlash">
+  <rect width="512" height="512" rx="96" fill="#101820"/>
+  <path fill="#f6f3ed" d="M121 143h270v54H184v69h163v53H184v135h-63z"/>
+  <path fill="#d83832" d="M240 63h32v386h-32z"/>
+</svg>
