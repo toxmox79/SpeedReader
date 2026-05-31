@@ -1,12 +1,12 @@
 const CACHE_NAME = "focusflash-v1";
-const CORE_ASSETS = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
+const CORE_ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then(async (cache) => {
-        await cache.addAll(CORE_ASSETS);
+        await cache.addAll(CORE_ASSETS.map(toScopeUrl));
         await cacheBuildAssets(cache);
       })
       .then(() => self.skipWaiting()),
@@ -23,11 +23,11 @@ self.addEventListener("activate", (event) => {
 });
 
 async function cacheBuildAssets(cache) {
-  const indexResponse = await fetch("/index.html", { cache: "no-store" });
+  const indexResponse = await fetch(toScopeUrl("./index.html"), { cache: "no-store" });
   const indexHtml = await indexResponse.clone().text();
-  await cache.put("/index.html", indexResponse);
+  await cache.put(toScopeUrl("./index.html"), indexResponse);
 
-  const assetUrls = findAssetUrls(indexHtml);
+  const assetUrls = findAssetUrls(indexHtml).map(toScopeUrl);
   const nestedAssets = new Set(assetUrls);
 
   await Promise.all(
@@ -36,7 +36,7 @@ async function cacheBuildAssets(cache) {
       await cache.put(url, response.clone());
       if (url.endsWith(".js")) {
         const source = await response.text();
-        findAssetUrls(source).forEach((assetUrl) => nestedAssets.add(assetUrl));
+        findAssetUrls(source).map(toScopeUrl).forEach((assetUrl) => nestedAssets.add(assetUrl));
       }
     }),
   );
@@ -49,7 +49,11 @@ async function cacheBuildAssets(cache) {
 }
 
 function findAssetUrls(source) {
-  return [...source.matchAll(/\/assets\/[^"'`\\)]+/g)].map((match) => match[0]);
+  return [...source.matchAll(/(?:\.\/)?assets\/[^"'`\\)]+/g)].map((match) => `./${match[0].replace(/^\.\//, "")}`);
+}
+
+function toScopeUrl(path) {
+  return new URL(path, self.registration.scope).href;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -63,11 +67,20 @@ self.addEventListener("fetch", (event) => {
         return cached;
       }
 
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
+      return fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => {
+          if (event.request.mode === "navigate") {
+            return caches.match(toScopeUrl("./")) || caches.match(toScopeUrl("./index.html"));
+          }
+          return caches.match(event.request);
+        });
     }),
   );
 });
