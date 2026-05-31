@@ -1,4 +1,4 @@
-const CACHE_NAME = "focusflash-v1";
+const CACHE_NAME = "focusflash-v2";
 const CORE_ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
